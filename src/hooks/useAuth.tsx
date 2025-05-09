@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -56,30 +55,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // Then check for an existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      
-      if (currentSession?.user) {
-        supabase
-          .from('users')
-          .select('*')
-          .eq('id', currentSession.user.id)
-          .single()
-          .then(({ data: userData, error }) => {
-            if (error) {
-              console.error('Error fetching user data:', error);
-              return;
-            }
+    const fetchSession = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', currentSession.user.id)
+            .single();
             
-            setUser(userData as AppUser);
-          })
-          .finally(() => {
-            setLoading(false);
-          });
-      } else {
+          if (error) {
+            console.error('Error fetching user data:', error);
+            return;
+          }
+          
+          setUser(userData as AppUser);
+        }
+      } catch (error) {
+        console.error('Error getting session:', error);
+      } finally {
         setLoading(false);
       }
-    });
+    };
+    
+    fetchSession();
 
     return () => {
       subscription.unsubscribe();

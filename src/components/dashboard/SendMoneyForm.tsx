@@ -35,12 +35,22 @@ const SendMoneyForm = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('users')
-        .select('id, username, avatarUrl')
+        .select('id, username, avatar_url')
         .ilike('username', `%${term}%`)
         .limit(5);
         
       if (error) throw error;
-      setUsers(data as User[]);
+      
+      // Map database column names to our User type properties
+      const formattedUsers = data.map((user: any) => ({
+        id: user.id,
+        username: user.username,
+        avatarUrl: user.avatar_url, // Map from snake_case to camelCase
+        email: "", // Not needed for display
+        balance: 0 // Not needed for display
+      }));
+      
+      setUsers(formattedUsers);
     } catch (error: any) {
       console.error('Error searching users:', error.message);
     } finally {
