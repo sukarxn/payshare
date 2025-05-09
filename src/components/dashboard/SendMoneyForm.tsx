@@ -26,8 +26,6 @@ const SendMoneyForm = () => {
   
   const { sendMoney } = useTransactions();
 
-  import { useEffect } from "react";
-
   useEffect(() => {
     const fetchUsers = async () => {
       try {
