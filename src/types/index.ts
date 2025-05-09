@@ -5,6 +5,8 @@ export interface User {
   email: string;
   avatarUrl?: string;
   balance: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Transaction {

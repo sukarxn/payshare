@@ -1,70 +1,88 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { User } from '../types';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { toast } from '@/components/ui/sonner';
+import { User as AppUser } from '../types';
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
+  session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
+  updateProfile: (data: Partial<AppUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (data && data.session) {
-          const { data: userData, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', data.session.user.id)
-            .single();
-          
-          if (error) throw error;
-          setUser(userData as User);
-        }
-      } catch (error: any) {
-        console.error('Error checking auth state:', error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkUser();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const { data: userData, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-          
-        if (error) {
-          console.error('Error fetching user data:', error.message);
-          return;
+    // First set up the auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          // Using setTimeout to prevent deadlock with Supabase auth
+          setTimeout(async () => {
+            const { data: userData, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', currentSession.user.id)
+              .single();
+            
+            if (error) {
+              console.error('Error fetching user data:', error.message);
+              return;
+            }
+            
+            setUser(userData as AppUser);
+          }, 0);
+        } else {
+          setUser(null);
         }
         
-        setUser(userData as User);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
+        }
+      }
+    );
+
+    // Then check for an existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      
+      if (currentSession?.user) {
+        supabase
+          .from('users')
+          .select('*')
+          .eq('id', currentSession.user.id)
+          .single()
+          .then(({ data: userData, error }) => {
+            if (error) {
+              console.error('Error fetching user data:', error);
+              return;
+            }
+            
+            setUser(userData as AppUser);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      } else {
+        setLoading(false);
       }
     });
 
     return () => {
-      if (authListener && authListener.subscription) {
-        authListener.subscription.unsubscribe();
-      }
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -73,11 +91,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       
       // Check if username already exists
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
+        
+      if (checkError) {
+        throw checkError;
+      }
         
       if (existingUser) {
         toast("Username already taken");
@@ -85,26 +107,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       // Sign up with Supabase Auth
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            username
+          }
+        }
+      });
+      
       if (error) throw error;
       
-      if (data.user) {
-        // Create a user profile in our users table
-        const newUser: Partial<User> = {
-          id: data.user.id,
-          email,
-          username,
-          balance: 1000, // Starting balance (for demo purposes)
-        };
-        
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([newUser]);
-          
-        if (profileError) throw profileError;
-        
-        toast("Account created successfully! Please check your email to verify your account.");
-      }
+      toast("Account created successfully! Please check your email to verify your account.");
     } catch (error: any) {
       toast(error.message);
     } finally {
@@ -139,7 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateProfile = async (data: Partial<User>) => {
+  const updateProfile = async (data: Partial<AppUser>) => {
     try {
       setLoading(true);
       
@@ -162,7 +177,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, updateProfile }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session,
+      loading, 
+      signUp, 
+      signIn, 
+      signOut, 
+      updateProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );

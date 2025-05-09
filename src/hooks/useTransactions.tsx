@@ -1,6 +1,6 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { Transaction, User } from '../types';
+import { Transaction } from '../types';
 import { supabase } from '../lib/supabase';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from './useAuth';
@@ -30,15 +30,27 @@ export const TransactionsProvider = ({ children }: { children: ReactNode }) => {
         .from('transactions')
         .select(`
           *,
-          sender:users!transactions_senderId_fkey(*),
-          receiver:users!transactions_receiverId_fkey(*)
+          sender:users!transactions_sender_id_fkey(*),
+          receiver:users!transactions_receiver_id_fkey(*)
         `)
-        .or(`senderId.eq.${user.id},receiverId.eq.${user.id}`)
-        .order('createdAt', { ascending: false });
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
         
       if (error) throw error;
       
-      setTransactions(data as Transaction[]);
+      // Transform the data to match our Transaction type
+      const formattedData = data.map((item: any) => ({
+        id: item.id,
+        senderId: item.sender_id,
+        receiverId: item.receiver_id,
+        amount: item.amount,
+        note: item.note,
+        createdAt: item.created_at,
+        sender: item.sender,
+        receiver: item.receiver
+      }));
+      
+      setTransactions(formattedData as Transaction[]);
     } catch (error: any) {
       console.error('Error fetching transactions:', error.message);
       toast("Failed to load transactions");
@@ -52,14 +64,14 @@ export const TransactionsProvider = ({ children }: { children: ReactNode }) => {
       fetchTransactions();
       
       // Set up a subscription for real-time updates
-      const subscription = supabase
-        .channel('public:transactions')
+      const channel = supabase
+        .channel('db-changes')
         .on('postgres_changes', 
           { 
             event: '*', 
             schema: 'public', 
             table: 'transactions',
-            filter: `senderId=eq.${user.id}` 
+            filter: `sender_id=eq.${user.id}` 
           }, 
           () => {
             fetchTransactions();
@@ -70,7 +82,7 @@ export const TransactionsProvider = ({ children }: { children: ReactNode }) => {
             event: '*', 
             schema: 'public', 
             table: 'transactions',
-            filter: `receiverId=eq.${user.id}` 
+            filter: `receiver_id=eq.${user.id}` 
           }, 
           () => {
             fetchTransactions();
@@ -79,7 +91,7 @@ export const TransactionsProvider = ({ children }: { children: ReactNode }) => {
         .subscribe();
         
       return () => {
-        subscription.unsubscribe();
+        supabase.removeChannel(channel);
       };
     }
   }, [user]);
@@ -104,8 +116,8 @@ export const TransactionsProvider = ({ children }: { children: ReactNode }) => {
         .from('transactions')
         .insert([
           {
-            senderId: user.id,
-            receiverId,
+            sender_id: user.id,
+            receiver_id: receiverId,
             amount,
             note
           }
@@ -133,15 +145,14 @@ export const TransactionsProvider = ({ children }: { children: ReactNode }) => {
       
       const { error: receiverUpdateError } = await supabase
         .from('users')
-        .update({ balance: (receiverData as User).balance + amount })
+        .update({ balance: parseFloat(receiverData.balance) + amount })
         .eq('id', receiverId);
         
       if (receiverUpdateError) throw receiverUpdateError;
       
       toast("Payment sent successfully!");
       
-      // Update local user state
-      // Note: This will be properly updated via the auth state listener
+      // Update local user state will happen via the auth state listener
       
       // Refresh transactions list
       fetchTransactions();
