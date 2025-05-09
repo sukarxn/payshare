@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User } from "@/types";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,38 +25,38 @@ const SendMoneyForm = () => {
   const [loading, setLoading] = useState(false);
   
   const { sendMoney } = useTransactions();
+
+  import { useEffect } from "react";
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, username, avatar_url')
+          .limit(100); // adjust limit as needed
   
-  const handleSearch = async (term: string) => {
-    setSearchTerm(term);
-    
-    if (!term || term.length < 2) return;
-    
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, username, avatar_url')
-        .ilike('username', `%${term}%`)
-        .limit(5);
-        
-      if (error) throw error;
-      
-      // Map database column names to our User type properties
-      const formattedUsers = data.map((user: any) => ({
-        id: user.id,
-        username: user.username,
-        avatarUrl: user.avatar_url, // Map from snake_case to camelCase
-        email: "", // Not needed for display
-        balance: 0 // Not needed for display
-      }));
-      
-      setUsers(formattedUsers);
-    } catch (error: any) {
-      console.error('Error searching users:', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (error) throw error;
+  
+        const formattedUsers = data.map((user: any) => ({
+          id: user.id,
+          username: user.username,
+          avatarUrl: user.avatar_url,
+          email: "",
+          balance: 0
+        }));
+  
+        setUsers(formattedUsers);
+      } catch (error: any) {
+        console.error('Error fetching users:', error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchUsers();
+  }, []);
   
   const handleSelectUser = (user: User) => {
     setSelectedUser(user);
@@ -108,34 +108,29 @@ const SendMoneyForm = () => {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0">
-                <Command>
-                  <CommandInput 
-                    placeholder="Search for a user..." 
-                    value={searchTerm}
-                    onValueChange={handleSearch}
-                  />
-                  <CommandList>
-                    <CommandEmpty>
-                      {loading ? "Searching..." : "No users found"}
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {users.map((user) => (
-                        <CommandItem
-                          key={user.id}
-                          value={user.username}
-                          onSelect={() => handleSelectUser(user)}
-                          className="flex items-center gap-2"
-                        >
-                          <UserAvatar username={user.username} avatarUrl={user.avatarUrl} size="sm" />
-                          <span>{user.username}</span>
-                          {selectedUser?.id === user.id && (
-                            <Check className="ml-auto h-4 w-4 text-payment-accent" />
-                          )}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
+              <Command>
+                {/* You can remove this if you don't want filtering at all */}
+                {/* <CommandInput placeholder="Search for a user..." disabled /> */}
+                <CommandList>
+                  <CommandEmpty>{loading ? "Loading..." : "No users found"}</CommandEmpty>
+                  <CommandGroup>
+                    {users.map((user) => (
+                      <CommandItem
+                        key={user.id}
+                        value={user.username}
+                        onSelect={() => handleSelectUser(user)}
+                        className="flex items-center gap-2"
+                      >
+                        <UserAvatar username={user.username} avatarUrl={user.avatarUrl} size="sm" />
+                        <span>{user.username}</span>
+                        {selectedUser?.id === user.id && (
+                          <Check className="ml-auto h-4 w-4 text-payment-accent" />
+                        )}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
               </PopoverContent>
             </Popover>
           </div>
