@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { User as AppUser } from '../types';
 
@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // First set up the auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log(currentSession)
         setSession(currentSession);
         
         if (currentSession?.user) {
@@ -35,13 +36,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .select('*')
               .eq('id', currentSession.user.id)
               .single();
-            
+            console.log(userData);
             if (error) {
               console.error('Error fetching user data:', error.message);
               return;
             }
             
             setUser(userData as AppUser);
+
           }, 0);
         } else {
           setUser(null);
@@ -66,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .select('*')
             .eq('id', currentSession.user.id)
             .single();
-            
+
           if (error) {
             console.error('Error fetching user data:', error);
             return;

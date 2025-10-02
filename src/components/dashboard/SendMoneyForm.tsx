@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useTransactions } from "@/hooks/useTransactions";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import UserAvatar from "@/components/ui/UserAvatar";
 import { toast } from "@/components/ui/sonner";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const SendMoneyForm = () => {
   const [amount, setAmount] = useState<number | "">("");
@@ -25,6 +26,7 @@ const SendMoneyForm = () => {
   const [loading, setLoading] = useState(false);
   
   const { sendMoney } = useTransactions();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -33,6 +35,7 @@ const SendMoneyForm = () => {
         const { data, error } = await supabase
           .from('users')
           .select('id, username, avatar_url')
+          .neq('id', user.id)
           .limit(100); // adjust limit as needed
   
         if (error) throw error;

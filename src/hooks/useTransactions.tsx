@@ -1,7 +1,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { Transaction } from '../types';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from './useAuth';
 
@@ -145,7 +145,7 @@ export const TransactionsProvider = ({ children }: { children: ReactNode }) => {
       
       const { error: receiverUpdateError } = await supabase
         .from('users')
-        .update({ balance: parseFloat(receiverData.balance) + amount })
+        .update({ balance: receiverData.balance + amount })
         .eq('id', receiverId);
         
       if (receiverUpdateError) throw receiverUpdateError;
