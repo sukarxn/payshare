@@ -11,25 +11,20 @@ import { AuthProvider } from "./hooks/useAuth";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <div className="flex items-center justify-center h-screen">
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-       <TooltipProvider>
-         <Toaster />
-         <Sonner />
-         <BrowserRouter>
-           <Routes>
-             <Route path="/" element={<Index />} />
-             <Route path="*" element={<NotFound />} />
-           </Routes>
-         </BrowserRouter>
-       </TooltipProvider>
-     </AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
-    <h1 className="text-3xl font-bold underline">
-      Hello world!
-    </h1>
-  </div>
 );
 
 export default App;
