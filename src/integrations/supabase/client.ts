@@ -6,8 +6,39 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Debug logging for production deployment issues
+console.log('Supabase Config Check:', {
+  url: SUPABASE_URL ? '✓ Present' : '✗ Missing',
+  key: SUPABASE_PUBLISHABLE_KEY ? '✓ Present' : '✗ Missing',
+  mode: import.meta.env.MODE,
+  dev: import.meta.env.DEV
+});
+
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error('Missing Supabase environment variables');
+  console.error('Missing environment variables:', {
+    VITE_SUPABASE_URL: SUPABASE_URL,
+    VITE_SUPABASE_ANON_KEY: SUPABASE_PUBLISHABLE_KEY ? 'Present but hidden' : 'Missing'
+  });
+  
+  // Show user-friendly error instead of just crashing
+  if (typeof document !== 'undefined') {
+    document.body.innerHTML = `
+      <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px;">
+          <h2 style="color: #e53e3e; margin-bottom: 15px;">⚠️ Configuration Error</h2>
+          <p style="margin-bottom: 10px;">The application is missing required environment variables.</p>
+          <div style="text-align: left; margin: 20px 0; padding: 15px; background: #f7fafc; border-radius: 4px;">
+            <p><strong>VITE_SUPABASE_URL:</strong> ${SUPABASE_URL ? '✓ Set' : '✗ Missing'}</p>
+            <p><strong>VITE_SUPABASE_ANON_KEY:</strong> ${SUPABASE_PUBLISHABLE_KEY ? '✓ Set' : '✗ Missing'}</p>
+            <p><strong>Environment:</strong> ${import.meta.env.MODE}</p>
+          </div>
+          <p style="font-size: 14px; color: #666;">Please check the deployment environment variables configuration.</p>
+        </div>
+      </div>
+    `;
+  }
+  
+  throw new Error('Missing Supabase environment variables - check deployment configuration');
 }
 
 // Import the supabase client like this:
