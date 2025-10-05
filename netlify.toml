@@ -6,3 +6,8 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Supabase anon key is safe to expose - it's designed to be public
+[build.environment]
+  VITE_SUPABASE_URL = ""
+  VITE_SUPABASE_ANON_KEY = ""
